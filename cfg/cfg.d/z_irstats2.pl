@@ -149,10 +149,8 @@ $c->add_trigger( $EPrints::Plugin::Stats::EP_TRIGGER_DYNAMIC_TEMPLATE, sub
         my $head = $repo->make_doc_fragment;
 
         $head->appendChild( $repo->make_javascript( undef,
-                src => "$protocol://www.google.com/jsapi"
+                src => "$protocol://www.gstatic.com/charts/loader.js"
         ) );
-
-        $head->appendChild( $repo->make_javascript( 'google.load("visualization", "1", {packages:["corechart", "geochart"]});' ) );
 
         if( defined $pins->{'utf-8.head'} )
         {
