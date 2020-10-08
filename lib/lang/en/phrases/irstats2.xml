@@ -87,7 +87,7 @@ Export as <epc:pin name="options"/>
 <!-- Pseudo reports (eg. the ones on citations/summary pages) -->
 <epp:phrase id="lib/irstats2:embedded:citation:eprint">
         <script type="text/javascript">
-        document.observe("dom:loaded",function(){
+        google.setOnLoadCallback(function(){
                 new EPJS_Stats_Sparkline ( {
                         'container_id': 'spark_<epc:pin name='eprintid'/>',
                         'datatype': 'downloads',
@@ -106,7 +106,7 @@ Export as <epc:pin name="options"/>
 <!--<p style="text-align:center"><a href="#" id="irstats2_summary_page:link">View more statistics</a></p>-->
 </div>
 <script type="text/javascript">
-document.observe("dom:loaded",function(){
+google.setOnLoadCallback(function(){
 
 		var irstats2_summary_page_eprintid = '<epc:pin name='eprintid'/>';
 
@@ -129,7 +129,7 @@ document.observe("dom:loaded",function(){
 <h3>Origin of downloads</h3>
 <div id="irstats2_summary_page_countries" class="irstats2_google_geochart"/>
 <script type="text/javascript">
-document.observe("dom:loaded",function(){
+google.setOnLoadCallback(function(){
 
 		var irstats2_summary_page_eprintid = '<epc:pin name='eprintid'/>';
 

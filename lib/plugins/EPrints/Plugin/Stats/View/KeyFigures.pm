@@ -112,8 +112,11 @@ sub render_metric_with_spark
 
        	$frag->appendChild( $self->{session}->make_element( "div", id => $name, class => "irstats2_googlespark" ) );
         $frag->appendChild( $self->{session}->make_javascript( <<DLSPARK ) );
-document.observe("dom:loaded",function(){
-	new EPJS_Stats_GoogleSpark( { 'context': $js_context, 'options': { 'container_id': '$name' } } );
+		google.setOnLoadCallback(keyFigSpark_$name);
+		function keyFigSpark_$name()
+		{
+			new EPJS_Stats_GoogleSpark( { 'context': $js_context, 'options': { 'container_id': '$name' } } );
+		}
 });
 DLSPARK
 	
