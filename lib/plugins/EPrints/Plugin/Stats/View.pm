@@ -117,14 +117,13 @@ sub render_content
 
         $frag->appendChild( $session->make_element( "div", id => "$id", class => $css_class ) );
 
-	# note: when called from a Browse View, the DOM is already loaded thus the dom:loaded Event will never fire. That's why we first test that the dom's already loaded below.
+	# note: when called from a Browse View, the DOM is already loaded thus the dom:loaded Event will never fire.
         $frag->appendChild( $session->make_javascript( <<CODE ) );
-	if( document.loaded )
-	  new EPJS_Stats_$js_class( { 'context': $json_context, 'options': $view_options } );
-	else
-		document.observe("dom:loaded",function(){
-			  new EPJS_Stats_$js_class( { 'context': $json_context, 'options': $view_options } );
-		});
+		google.setOnLoadCallback(drawChart_$id);
+		function drawChart_$id()
+		{
+			new EPJS_Stats_$js_class( { 'context': $json_context, 'options': $view_options } );
+		}
 CODE
 
         return $frag;
