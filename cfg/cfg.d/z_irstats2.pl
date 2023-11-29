@@ -175,6 +175,7 @@ $c->add_trigger( $EPrints::Plugin::Stats::EP_TRIGGER_DYNAMIC_TEMPLATE, sub
 
 # Hide the link to the reports by default:
 $c->{plugins}->{"Screen::IRStats2::Report"}->{appears}->{key_tools} = undef;
+$c->{plugins}->{"Screen::IRStats2::Report::AuthReport"}->{appears}->{key_tools} = undef;
 
 ##########
 # Reports
@@ -529,6 +530,7 @@ $c->{plugins}{"Stats::View::ReportHeader"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::Table"}{params}{disable} = 0;
 
 $c->{plugins}{"Screen::IRStats2::Report"}{params}{disable} = 0;
+$c->{plugins}{"Screen::IRStats2::Report::AuthReport"}{params}{disable} = 0;
 
 # Display download stats for an EPrints on it's summary page?
 # Confusingly, set this to '0' to make them appear, or 1 to not show them
@@ -539,3 +541,19 @@ $c->{plugins}{"Screen::EPrint::Box::Stats"}{params}{disable} = 1;
 # somewhere else
 #$c->{plugins}{"Screen::EPrint::Box::Stats"}{appears}{summary_bottom} = undef;
 #$c->{plugins}{"Screen::EPrint::Box::Stats"}{appears}{summary_right} = 1000;
+
+# Auth Reports
+# Copy the usual reports config, and then remove the first item which is probably(!) the ReportHeader
+$c->{irstats2}->{auth_report} = EPrints::Utils::clone($c->{irstats2}->{report});
+for my $report_name (keys $c->{irstats2}->{report})
+{
+    my @new_items;
+    for my $item (@{$c->{irstats2}->{report}->{$report_name}->{items}})
+    {
+        if( $item->{plugin} ne "ReportHeader" )
+        {
+            push @new_items, $item;
+        }
+    }
+    $c->{irstats2}->{report}->{$report_name}->{items} = \@new_items;
+}

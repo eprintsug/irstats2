@@ -6,10 +6,20 @@ use strict;
 my $session = EPrints::Session->new();
 exit( 0 ) unless( defined $session );
 
-EPrints::ScreenProcessor->process(
-	session => $session,
-	screenid => "IRStats2::Report",
-);
+my $rc = EPrints::Utils::is_set( $session->config('irstats2', 'auth_report') );
+if( $session->current_user && $rc )
+{
+    EPrints::ScreenProcessor->process(
+        session => $session,
+        screenid => "IRStats2::Report::AuthReport",
+    );
+}
+else
+{
+    EPrints::ScreenProcessor->process(
+        session => $session,
+        screenid => "IRStats2::Report",
+    );
+}
 
 $session->terminate;
-

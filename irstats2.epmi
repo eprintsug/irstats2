@@ -26,9 +26,9 @@
           <datasetid>document</datasetid>
           <filename>epm/irstats2/cfg/cfg.d/z_irstats2.pl</filename>
           <mime_type>text/plain</mime_type>
-          <hash>03ed717d9dff9e427488babb8d201bfd</hash>
+          <hash>141706e27f9216a62003b6c035bb252e</hash>
           <hash_type>MD5</hash_type>
-          <filesize>14962</filesize>
+          <filesize>15658</filesize>
         </file>
         <file>
           <datasetid>document</datasetid>
@@ -74,9 +74,9 @@
           <datasetid>document</datasetid>
           <filename>epm/irstats2/cgi/stats/report</filename>
           <mime_type>text/plain</mime_type>
-          <hash>0f5e581c8a1642c83bca9fd72535525f</hash>
+          <hash>f389d7d2cadbcec51fc705940716986d</hash>
           <hash_type>MD5</hash_type>
-          <filesize>251</filesize>
+          <filesize>528</filesize>
         </file>
         <file>
           <datasetid>document</datasetid>
@@ -90,9 +90,9 @@
           <datasetid>document</datasetid>
           <filename>lang/en/phrases/irstats2.xml</filename>
           <mime_type>application/xml</mime_type>
-          <hash>9e9d68491bdd1497e87015318a11d03c</hash>
+          <hash>081b3c0e8c0c7af954cc4f0576e7409d</hash>
           <hash_type>MD5</hash_type>
-          <filesize>60586</filesize>
+          <filesize>60708</filesize>
         </file>
         <file>
           <datasetid>document</datasetid>
@@ -2588,7 +2588,7 @@
       <content>coverimage</content>
     </document>
   </documents>
-  <version>1.1.6</version>
+  <version>1.1.7</version>
   <controller>EPMC::IRStats2</controller>
   <creators>
     <item>
@@ -2610,6 +2610,12 @@
         <given>Will</given>
       </name>
       <id>will.fyson@cosector.com</id>
+    </item>
+    <item>
+      <name>
+        <family>McNicholl</family>
+        <given>Rory</given>
+      </name>
     </item>
   </creators>
   <datestamp>2020-02-14 00:09:00</datestamp>
