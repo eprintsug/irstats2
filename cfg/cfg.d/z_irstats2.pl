@@ -545,7 +545,7 @@ $c->{plugins}{"Screen::EPrint::Box::Stats"}{params}{disable} = 1;
 # Auth Reports
 # Copy the usual reports config, and then remove the first item which is probably(!) the ReportHeader
 $c->{irstats2}->{auth_report} = EPrints::Utils::clone($c->{irstats2}->{report});
-for my $report_name (keys $c->{irstats2}->{report})
+for my $report_name (keys %{$c->{irstats2}->{report}})
 {
     my @new_items;
     for my $item (@{$c->{irstats2}->{report}->{$report_name}->{items}})
