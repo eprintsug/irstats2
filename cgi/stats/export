@@ -1,0 +1,60 @@
+use strict;
+
+use EPrints;
+require HTML::Entities;
+
+# format is:
+# /cgi/stats/export/<ExportPluginId>/...
+
+my $session = new EPrints::Session;
+return unless( defined $session );
+
+unless( $session->can_call( 'irstats2', 'allow' ) && $session->call( ['irstats2', 'allow'], $session, 'irstats2/export' ) )
+{
+	$session->get_request->status( 401 );
+        $session->terminate;
+        exit;
+}
+
+my $handler = $session->plugin( "Stats::Handler" );
+unless(defined $handler)
+{
+
+        print STDOUT "<p>IRStats2: internal error (handler not available)</p>";
+        $session->terminate();
+        return;
+}
+
+my $context = $handler->context->from_request( $session );
+
+# if one of these 2 isn't set, delete/ignore both
+if( !defined $context->{set_name} ne !defined $context->{set_value} )
+{
+	delete $context->{set_name};
+	delete $context->{set_value};
+}
+
+my $export = $context->{format};
+
+unless( defined $export )
+{
+	print STDOUT "<p>IRStats2: missing parameters in request.</p>";
+	$session->terminate;
+	return;
+}
+
+
+my $export_plugin = $session->plugin( "Stats::Export::$export" );
+unless( defined $export_plugin )
+{
+	print STDOUT "<p>IRStats2: unknown export <strong>".HTML::Entities::encode( $export )."</strong></p>";
+	$session->terminate;
+	return;
+}
+
+$session->send_http_header( content_type => $export_plugin->mimetype );
+$export_plugin->export( $handler, $context );
+
+$session->terminate;
+return;
+

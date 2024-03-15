@@ -1,0 +1,86 @@
+use strict;
+
+use EPrints;
+require HTML::Entities;
+
+my $session = new EPrints::Session;
+return unless( defined $session );
+
+unless( $session->can_call( 'irstats2', 'allow' ) && $session->call( ['irstats2', 'allow'], $session, 'irstats2/view' ) )
+{
+	$session->get_request->status( 401 );
+        $session->terminate;
+        exit;
+}
+
+my $handler = $session->plugin( "Stats::Handler" );
+unless(defined $handler)
+{
+        print STDOUT "<p>IRStats2: internal error (handler not available)</p>";
+        $session->terminate();
+        return;
+}
+
+my ($context, $params) = &get_context( $session, $handler );
+
+my $view = $params->{view};
+
+unless( defined $view )
+{
+	print STDOUT "<p>IRStats2: missing parameters in request.</p>";
+	$session->terminate;
+	return;
+}
+
+my $view_plugin = $session->plugin( "Stats::View::$view", 
+		handler => $handler, 
+		options => $params, 
+		context => $context 
+);
+
+unless( defined $view_plugin )
+{
+	print STDOUT "<p>IRStats2: unknown view <strong>".HTML::Entities::encode( $view )."</strong></p>";
+	$session->terminate;
+	return;
+}
+
+if( defined $params->{export} )
+{
+	my $export_plugin = $session->plugin( "Stats::Export::".$params->{export} );
+	if( defined $export_plugin )
+	{
+		$params->{export_plugin} = $export_plugin;
+		$session->send_http_header( content_type => $export_plugin->mimetype );
+		$view_plugin->export( $params );	
+	}
+}
+else
+{
+	$session->send_http_header( content_type => $view_plugin->mimetype );
+	$view_plugin->ajax( $context );
+}
+
+$session->terminate;
+return;
+
+sub get_context
+{
+	my( $session, $handler ) = @_;
+
+	my $context = $handler->context->from_request( $session );
+	
+	my %context_fields = map { $_ => 1 } @{ $context->fields || [] };
+
+	my %params;
+
+	my @sparams = $session->param();
+	foreach( @sparams )
+	{
+		my $val = $session->param( $_ );
+		# if there's no value, or it's a 'context' param, skip it.
+		next if( !EPrints::Utils::is_set( $val ) || $context_fields{$_} );
+		$params{$_} = $val if EPrints::Plugin::Stats::Utils::validate_non_context_param( $session, $_, $val );
+	}
+	return ( $context, \%params );
+}
