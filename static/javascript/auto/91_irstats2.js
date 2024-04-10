@@ -1,5 +1,46 @@
 /* D3 Graphs and Widgets */
 
+/* Takes a numerical response from a Counter stats view and
+ * displays it using a counting up animation */
+var EPJS_Stats_Ticker = Class.create(EPJS_Stats, {
+
+    initialize: function($super,params) {
+        $super( params );
+        this.view = 'Counter';
+        this.draw();
+    },
+
+    ajax: function($super,response) {
+        $super(response);
+        var html = response.responseText;
+        
+        var $container = $( this.container_id );
+
+        // Counter returns us the result in text that looks like HTML
+        // So convert this into proper HTML so we can get the value
+        const parser = new DOMParser();
+        const dom = parser.parseFromString(html, "text/html");
+
+        var value = dom.querySelector('.irstats2_counter_value').innerHTML;
+
+        // configure the counting animation
+        var duration = 1250;
+        var interval = 50;
+
+        var currentCount = 0;
+        var step = Math.ceil(value / (duration / interval));
+        console.log("hello");
+        var timer = setInterval(function(){
+            currentCount += step;
+            if(currentCount >= value){
+                clearInterval(timer);
+                currentCount = value;
+            }
+            $container.update(formatNumberWithCommas(currentCount));
+        }, interval);
+    }
+});
+
 // D3 bar chart
 /* A dynamic downloads bar graph that shows all time downloads, 
  * either by day, month or years depending on how far back the
@@ -246,6 +287,9 @@ var EPJS_Stats_D3Bars = Class.create(EPJS_Stats, {
     }
 });
 
+/* Utility Functions for the above widgets and graphs */
+
+// Funtion to get middle of the month (roughly)
 function getMidMonth(date) {
     return new Date(date.getFullYear(), date.getMonth(), 15);
 }
@@ -259,3 +303,7 @@ function getMidDay(date) {
     return midDay;
 }
 
+// display number in a nice, human-readable way
+function formatNumberWithCommas(number) {
+    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
