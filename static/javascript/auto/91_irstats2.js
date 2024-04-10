@@ -1,30 +1,16 @@
 /* D3 Graphs and Widgets */
 
-// Generates a single number from the data and writes it to an element
-var EPJS_Stats_NumberCard = Class.create(EPJS_Stats, {
- 
-        initialize: function($super,params) {
-        $super( params );
-        this.view = 'Google::Graph';
-        this.draw();
-    },
-
-    ajax: function($super,response) {
-        $super();
-        var data = response.responseText.evalJSON().data;
-        var total = 0;
-        data.forEach( d=> total = total + d[1]);
-        var container = $( this.container_id );
-        container.appendChild(document.createTextNode(total));
-    }
-});
-
 // D3 bar chart
+/* A dynamic downloads bar graph that shows all time downloads, 
+ * either by day, month or years depending on how far back the
+ * data goes (i.e. more than a month, show months, more than 
+ * 24 months, show years)
+ */
 var EPJS_Stats_D3Bars = Class.create(EPJS_Stats, {
 
     initialize: function($super,params) {
         $super( params );
-        this.view = 'Google::Graph';
+        this.view = 'D3::Graph';
         this.draw();
     },
 
@@ -33,31 +19,130 @@ var EPJS_Stats_D3Bars = Class.create(EPJS_Stats, {
         $super();
 
         // Declare the chart dimensions and margins.
-        const margin = { top: 30, right: 20, bottom: 30, left: 40 };
+        const margin = { top: 30, right: 30, bottom: 30, left: 40 };
 
         var width = 400 - margin.left - margin.right;
         var height = 300 - margin.top - margin.bottom;
 
-        var data = response.responseText.evalJSON().data;
-
         // Calculate the inner width and height of the chart area
         var innerWidth = width - margin.left - margin.right;
         var innerHeight = height - margin.top - margin.bottom;
-        
+ 
+        // get the data
+        var data = response.responseText.evalJSON().data;
+
         // normalise the dates
-        const parseDate = d3.utcParse('%b %Y');
-        data.forEach(d => d[0] = parseDate(d[0]));
+        const parseDate = d3.timeParse('%d %b %Y');
+        data.forEach(d => d[0] = parseDate(d[0]))
 
-        //format the dates
-        const formatDate = d3.utcFormat("%b, %Y");
+        // calculate data range
+        var dataRange = [
+            d3.min(data, function(d) { return d[0]; }),
+            d3.max(data, function(d) { return d[0]; })
+        ];
 
-        const xScale = d3.scaleBand()
-            .domain(data.map(d => d[0]))
-            .range([0, innerWidth])
-            .padding(0.1);
-        const xAxis = d3.axisBottom(xScale)
-            //.tickValues(d3.range(12)) // Set the tick values to represent each month
-            .tickFormat(formatDate); // Format the tick labels to display month abbreviation
+        // how many days and months in the range
+        var diffInDays = d3.timeDay.count(dataRange[0], dataRange[1]);
+        var diffInMonths = d3.timeMonth.count(dataRange[0], dataRange[1]);        
+
+
+        // Determine appropriate tick count based on available width and data range
+
+        // work out what granularity we're dealing with
+        if( diffInDays <= 31 )
+        {  
+            /*** day granularity ***/
+            // place the tick in the centre of the day
+            tickCentres = data.map(function(d, i) {
+                return getMidDay(d[0]);                
+            });
+
+            // centre the bars
+            calculateXPosition = function(d, i) {
+                return xScale(getMidDay(d[0])) - (barWidth / 2);
+            };
+
+            // add a half day to either end of the graph to space things out nicely
+            graphRange = [
+                getMidDay(d3.timeDay.offset(d3.min(data, function(d) { return d[0]; }), -1)),
+                getMidDay(d3.timeDay.offset(d3.max(data, function(d) { return d[0]; }), 1 ))
+            ];
+
+            // display format - day format can get cluttered, only display first and last days
+            formatDate = d3.timeFormat("%d %b, %Y");
+            tickFormat = function(d, i){
+                if( i == 0 || i == data.length-1 )
+                {
+                    return formatDate(d);
+                }
+                else
+                {
+                    return "";
+                }
+            }         
+        }
+        else
+        {
+            /*** Month granularity ***/
+            // Group data by month
+            var dataByMonth = d3.group(data, function(d) {
+                return d3.timeMonth(d[0]);
+            });
+
+            // Convert data to group values by month
+            data = Array.from(dataByMonth.entries()).map(function([key, value]) {             
+                return [
+                    key,
+                    d3.sum(value, function(d) { return d[1]; })
+                ];
+            });
+
+            // Calculate the middle of each month
+            tickCentres = data.map(function(d) {
+                return getMidMonth(d[0]);
+            });
+
+            // change how we format dates
+            formatDate = d3.timeFormat("%b, %Y");
+            tickFormat = function(d, i){
+                if( i == 0 || i == data.length-1 )
+                {
+                    return formatDate(d);
+                }
+                else
+                {
+                    return "";
+                }
+            }
+
+            // and update our range - we need add a half month to each side of the x-axis to pad things out nicely
+            graphRange = [
+                getMidMonth(d3.timeMonth.offset(d3.min(data, function(d) { return d[0]; }), -1)),
+                getMidMonth(d3.timeMonth.offset(d3.max(data, function(d) { return d[0]; }), 1 ))
+            ];
+
+
+            // update our bar positioning to work nicely for months
+            calculateXPosition = function(d, i) {
+                return xScale(getMidMonth(d[0])) - (barWidth / 2);
+            };
+        }
+
+        // and calculate a new bar width
+        barWidth = (innerWidth/(data.length+1)) - 2;
+
+        // function to calculate number of ticks
+        tickCount = Math.min(Math.ceil(data.length / (innerWidth / 75)), data.length+1);          
+
+        // generate xScale using up to date range
+        xScale = d3.scaleTime()
+            .domain(graphRange)
+            .range([0, innerWidth]);
+
+        // calculate our x-axis for month based granularity
+        xAxis = d3.axisBottom(xScale)
+            .tickFormat(tickFormat) // Format the tick labels to display month abbreviation
+            .tickValues(tickCentres);
 
         // Declare the y (vertical position) scale.
         const yScale = d3.scaleLinear()
@@ -71,7 +156,6 @@ var EPJS_Stats_D3Bars = Class.create(EPJS_Stats, {
         const svg = d3.create("svg")
            .attr("width", width)
            .attr("height", height);
-           //.attr("style", "max-width: 100%; height: auto;");
 
         const g = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
@@ -80,11 +164,12 @@ var EPJS_Stats_D3Bars = Class.create(EPJS_Stats, {
             .data(data)
             .enter()
             .append('rect')
-            .attr('x', d => xScale(d[0]))
+            .attr('x', calculateXPosition)
             .attr('y', d => yScale(d[1]))
-            .attr('width', xScale.bandwidth())
+            .attr('width', barWidth)
             .attr('height', d => innerHeight - yScale(d[1]))
             .attr('fill', '#621244');
+
         // Add x-axis
         g.append('g')
             .attr('class', 'x-axis')
@@ -115,7 +200,7 @@ var EPJS_Stats_D3Bars = Class.create(EPJS_Stats, {
         });
 
         var container = $( this.container_id );
-        container.append(svg.node());
+        container.update(svg.node());
 
         // and finally handle resizing the window
 
@@ -128,9 +213,11 @@ var EPJS_Stats_D3Bars = Class.create(EPJS_Stats, {
             var innerWidth = width - margin.left - margin.right;
             var innerHeight = height - margin.top - margin.bottom;
 
+            // and calculate a new bar width
+            barWidth = (innerWidth/(data.length+1))-2;
+
             // Update SVG container size
-            svg.attr("width", width)
-                .attr("height", height);
+            svg.attr("width", width).attr("height", height);
 
             // Update scales based on new dimensions
             xScale.range([0, innerWidth]);
@@ -139,7 +226,7 @@ var EPJS_Stats_D3Bars = Class.create(EPJS_Stats, {
             // Redraw the bars
             svg.selectAll("rect")
                 .attr("x", function(d) { return xScale(d[0]); })
-                .attr("width", xScale.bandwidth())
+                .attr("width", barWidth)
                 .attr("y", function(d) { return yScale(d[1]); })
                 .attr("height", function(d) { return innerHeight - yScale(d[1]); });
 
@@ -158,3 +245,17 @@ var EPJS_Stats_D3Bars = Class.create(EPJS_Stats, {
         resize();
     }
 });
+
+function getMidMonth(date) {
+    return new Date(date.getFullYear(), date.getMonth(), 15);
+}
+
+// Function to get the middle of a day
+function getMidDay(date) {
+    // Clone the date to avoid modifying the original
+    var midDay = new Date(date);
+    // Set the time to the middle of the day (12:00 PM)
+    midDay.setHours(12, 0, 0, 0);
+    return midDay;
+}
+

@@ -45,8 +45,8 @@ sub render_action_link
 {
         my( $self, %opts ) = @_;
 
-        my $link = $self->SUPER::render_action_link( %opts );
-        $link->setAttribute( href => EPrints::Plugin::Stats::Utils::base_url( $self->{session} ) );
+        my $link = $self->SUPER::render_action_link( %opts, { "href" => EPrints::Plugin::Stats::Utils::base_url( $self->{session} ) } );
+
         return $link;
 }
 
