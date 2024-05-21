@@ -124,7 +124,14 @@ sub select
 	my( $context, $handler ) = ( $self->context, $self->handler );
 
 	my $datatype = $context->{datatype};
-	
+    if( defined $context->{cache} && $context->{cache} ne "" && $context->{cache} ne "0" ) 
+    {
+        # we just need to grab the contents from the associated file (if it exists and is a cache id we recognise)
+        my $data = EPrints::Plugin::Stats::Utils::get_cached_stats( $self->{session}, $context->{cache} );
+        $self->{data} = $data;
+        return $self;
+    }
+
         # optimisation? hack? pick one. This uses an "internal" table "irstats2_cache_$datatype" which keeps a cumulative
 	# sum of the downloads (say) per eprint - this can be used instead of the main table "irstats2_$datatype" if 
 	# there are no dates filters and if we're not requesting the daily download counts (as on a download graph for instance)

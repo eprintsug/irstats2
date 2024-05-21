@@ -14,7 +14,6 @@ var EPJS_Stats = Class.create({
 
 //		this.queue_lock = false;
 //		this.run_lock = true;
-
 		if( params == null )
 		{
 			alert( 'Missing params in EPJS_Stats' );
@@ -38,7 +37,6 @@ var EPJS_Stats = Class.create({
 
 		this.context = new Hash(context);
 		this.options = new Hash(options);
-
 		this.ajax_params = new Hash();
 
 		var my_context = this.get_context_fields();
@@ -56,7 +54,7 @@ var EPJS_Stats = Class.create({
 
 	get_context_fields: function() {
 
-		return [ 'datatype', 'datafilter', 'grouping', 'set_name', 'set_value', 'range', 'to', 'from' ];
+		return [ 'datatype', 'datafilter', 'grouping', 'set_name', 'set_value', 'range', 'to', 'from', 'cache' ];
 	},
 
 	can_run: function() {

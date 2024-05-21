@@ -520,6 +520,7 @@ $c->{plugins}{"Stats::Processor::History::Actions"}{params}{disable} = 0;
 
 $c->{plugins}{"Stats::View::Compare"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::Counter"}{params}{disable} = 0;
+$c->{plugins}{"Stats::View::Cached"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::Google::GeoChart"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::Google::Graph"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::Google::PieChart"}{params}{disable} = 0;

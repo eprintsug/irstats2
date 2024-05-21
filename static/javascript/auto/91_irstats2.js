@@ -1,17 +1,18 @@
 /* D3 Graphs and Widgets */
 
-/* Takes a numerical response from a Counter stats view and
+/* Takes a numerical response from a Cached stats view and
  * displays it using a counting up animation */
 var EPJS_Stats_Ticker = Class.create(EPJS_Stats, {
 
     initialize: function($super,params) {
         $super( params );
-        this.view = 'Counter';
+        this.view = 'Cached';
         this.draw();
     },
 
     ajax: function($super,response) {
         $super(response);
+        console.log(response);
         var html = response.responseText;
         
         var $container = $( this.container_id );
@@ -29,7 +30,6 @@ var EPJS_Stats_Ticker = Class.create(EPJS_Stats, {
 
         var currentCount = 0;
         var step = Math.ceil(value / (duration / interval));
-        console.log("hello");
         var timer = setInterval(function(){
             currentCount += step;
             if(currentCount >= value){
@@ -71,7 +71,7 @@ var EPJS_Stats_D3Bars = Class.create(EPJS_Stats, {
  
         // get the data
         var data = response.responseText.evalJSON().data;
-
+        
         // normalise the dates
         const parseDate = d3.timeParse('%d %b %Y');
         data.forEach(d => d[0] = parseDate(d[0]))
@@ -266,6 +266,7 @@ var EPJS_Stats_D3Bars = Class.create(EPJS_Stats, {
 
             // Redraw the bars
             svg.selectAll("rect")
+                .transition()
                 .attr("x", function(d) { return xScale(d[0]); })
                 .attr("width", barWidth)
                 .attr("y", function(d) { return yScale(d[1]); })
@@ -273,6 +274,7 @@ var EPJS_Stats_D3Bars = Class.create(EPJS_Stats, {
 
             // Redraw x axis
             svg.select(".x-axis")
+                .transition()
                 .attr("transform", "translate(0," + innerHeight + ")")
                 .call(xAxis);
 

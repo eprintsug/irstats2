@@ -506,4 +506,44 @@ sub get_param
         return undef;
 }
 
+##########
+#
+# Caching Stats
+#
+##########
+
+sub get_cached_stats
+{
+    my( $session, $cache ) = @_;
+    my $cache_file;
+    my $filepath = $session->config( "variables_path" )."/stats/$cache";
+
+    # first check if this is defined in our cacheables config
+    my $found_cache = 0;    
+    foreach my $cache_id ( keys $session->config( "irstats2", "cacheables" ) )
+    {
+        $found_cache = 1 if ( $cache eq $cache_id );   
+    }
+
+    if( !$found_cache )
+    {
+        $session->log( "IRStats2 (Utils get_cached_stats), cache id is not defined in cacheables config: $cache" );
+        return undef;
+    }
+
+    # and then check if the file exists
+    if( !-e $filepath )
+    {
+        $session->log( "IRStats2 (Utils get_cached_stats), file does not exist for requested cache: $cache (filepath: $filepath)" );
+        return undef;
+    }
+
+    # everything looks ok, so let's return the contents of the file
+    open my $fh, '<', $filepath or die( "IRStats2 (Utils get_cached_stats), could not read file: $filepath" );
+    $/ = undef;
+    my $data = <$fh>;
+
+    return $data;
+}
+
 1;
