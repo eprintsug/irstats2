@@ -12,7 +12,7 @@ var EPJS_Stats_Ticker = Class.create(EPJS_Stats, {
 
     ajax: function($super,response) {
         $super(response);
-        console.log(response);
+        
         var html = response.responseText;
         
         var $container = $( this.container_id );

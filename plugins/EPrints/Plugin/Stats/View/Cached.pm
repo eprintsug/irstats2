@@ -22,10 +22,6 @@ sub render_content_ajax
 
     my $count = $self->handler->data( $self->context )->select()->data();
 
-    my $human_display = $self->options->{human_display} || 1;
-    $human_display = 1 unless( defined $human_display && $human_display eq '0' );
-    $count = EPrints::Plugin::Stats::Utils::human_display( $self->{session}, $count ) if( $human_display );
-
     my $span = $self->{session}->make_element( 'span', class => 'irstats2_counter_value' );
     $span->appendChild( $self->{session}->make_text( $count ) );
     return $span;

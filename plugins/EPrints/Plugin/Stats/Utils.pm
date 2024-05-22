@@ -520,7 +520,7 @@ sub get_cached_stats
 
     # first check if this is defined in our cacheables config
     my $found_cache = 0;    
-    foreach my $cache_id ( keys $session->config( "irstats2", "cacheables" ) )
+    foreach my $cache_id ( keys %{$session->config( "irstats2", "cacheables" )} )
     {
         $found_cache = 1 if ( $cache eq $cache_id );   
     }
