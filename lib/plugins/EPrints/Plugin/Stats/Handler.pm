@@ -218,7 +218,7 @@ my $VALID_FIELDS = {
 sub extract_eprint_data
 {
 	my( $self, $context, $conf ) = @_;
-
+    
 	# Does the table exist?
 	my $datatype = $context->{datatype};
 	my $tablename = "irstats2_$datatype";
@@ -307,13 +307,37 @@ sub extract_eprint_data
 		}
 	}
 
-	# eprintid defined ?
-	my $eprintid = $local_context->{set_value};
-	if( EPrints::Utils::is_set( $eprintid ) )
-	{
-		# 'eprintid' is an integer so quote it as such
-		push @conditions, $self->{dbh}->quote_identifier( 'eprintid' )." = ".$self->{dbh}->quote_int( $eprintid );
-	}
+    # eprintid defined ?
+    if( $local_context->{set_name} eq "eprint" )
+    {
+        my $eprintid = $local_context->{set_value};
+        if( EPrints::Utils::is_set( $eprintid ) )
+        {
+            # 'eprintid' is an integer so quote it as such
+            push @conditions, $self->{dbh}->quote_identifier( 'eprintid' )." = ".$self->{dbh}->quote_int( $eprintid );
+        }
+    }
+    elsif( $local_context->{set_name} eq "eprint_cache" )
+    {
+        my $cacheid = $local_context->{set_value};
+        if( EPrints::Utils::is_set( $cacheid ) )
+        {
+            # get our dataset
+            my $ds = $self->{session}->config( 'irstats2', 'eprint_dataset' ) || "archive";
+            $ds = $self->{session}->dataset( $ds );
+
+            # get a list from a cache value
+            my $list = EPrints::List->new( repository => $self->{session}, dataset => $ds, undef, undef, cache_id => $cacheid );       
+
+            # generate SQL to get just the IDs in our list
+            my @ids = @{$list->ids};
+            push @conditions, $self->{dbh}->quote_identifier( 'eprintid' )." IN ( " . join( ", ", @ids ) . " )";
+        }
+        else
+        {
+            push @conditions, $self->{dbh}->quote_identifier( 'eprintid' )." = NULL";
+        }
+    }
 
 	# extra filtering ? 
 	if( EPrints::Utils::is_set( $datafilter ) )
@@ -322,7 +346,7 @@ sub extract_eprint_data
 	}
 
 	my $show_archive_only = $self->{session}->config( 'irstats2', 'show_archive_only' ) || 0;
-	if ($show_archive_only)
+	if ($show_archive_only || $local_context->{set_name} eq "eprint_cache") # when doing cache based searches only ever include stuff in the live archive... don't want old caches hanging around revealing stats about records which have since been removed
 	{
 		push @conditions, "eprintid in (select eprintid from eprint where eprint_status='archive')";
 	}
@@ -352,9 +376,8 @@ sub extract_eprint_data
 	my $sth = $self->prepare_select( $sql, limit => $conf->{limit}, offset => $conf->{offset} );
 
 	$self->log( "SQL IS '$sql'" ) if( $DEBUG_SQL );
-
 	$self->{dbh}->execute( $sth, $sql );
-
+    
 	my @results;
 	while( my @row = $sth->fetchrow_array )
 	{
@@ -903,7 +926,6 @@ sub create_sets_tables
 sub valid_set_value
 {
         my( $self, $set_name, $set_value ) = @_;
-        
         return 0 unless( defined $set_name && defined $set_value );
 
         # TODO can do better than that?
@@ -911,6 +933,11 @@ sub valid_set_value
         {
             my $eprint_ds = $self->{session}->config( 'irstats2', 'eprint_dataset' ) || "archive";
             return (defined $self->{session}->dataset( $eprint_ds )->dataobj( $set_value ) ) ? 1 : 0;
+        }
+
+        if( $set_name eq 'eprint_cache' )
+        {
+            return (defined $self->{session}->dataset( "cachemap" )->dataobj( $set_value ) ) ? 1 : 0;
         }
 
         my $set_tablename = $SET_TABLE_PREFIX."_".$set_name;

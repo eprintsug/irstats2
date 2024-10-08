@@ -139,15 +139,15 @@ sub select
         }
 
         my $stats;
-        if( !EPrints::Utils::is_set( $context->{set_name} ) || $context->{set_name} eq 'eprint' )
+        if( !EPrints::Utils::is_set( $context->{set_name} ) || $context->{set_name} eq 'eprint' || $context->{set_name} eq 'eprint_cache' )
         {
-		# simply case when no Sets are involved
+                # simply case when no Sets are involved
                 # note that $set->{value} may still carry out an eprintid
                 $stats = $handler->extract_eprint_data( $context, $self->conf );
         }
         else
         {
-		# more complex cases: Sets and/or Groupings
+                # more complex cases: Sets and/or Groupings
                 $stats = $handler->extract_set_data( $context, $self->conf );
         }
 
