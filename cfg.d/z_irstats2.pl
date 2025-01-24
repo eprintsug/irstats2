@@ -528,6 +528,7 @@ $c->{plugins}{"Stats::View::Google::Spark"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::Grid"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::KeyFigures"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::ReportHeader"}{params}{disable} = 0;
+$c->{plugins}{"Stats::View::StaticContent"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::Table"}{params}{disable} = 0;
 
 $c->{plugins}{"Stats::View::D3::Graph"}{params}{disable} = 0;
