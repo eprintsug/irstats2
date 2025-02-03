@@ -104,10 +104,13 @@ foreach my $dataset_id ( keys %$dataset_ids )
 
 if( EPrints::Utils::is_set( $session->config( "irstats2", "cacheables" ) ) )
 {
-    foreach my $cache_id ( keys $session->config( "irstats2", "cacheables" ) )
+    my $cache_dir = $session->config( "variables_path" )."/stats";
+    EPrints::Platform::mkdir( $cache_dir ) if !-e $cache_dir;
+
+    foreach my $cache_id ( keys %{ $session->config( "irstats2", "cacheables" ) } )
     {
         # get the filename
-        my $filename = $session->config( "variables_path" )."/stats/$cache_id";
+        my $filename = "$cache_dir/$cache_id";
 
         # get the data
         my $data = $session->config( "irstats2", "cacheables" )->{$cache_id}->( $session );
