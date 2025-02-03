@@ -55,6 +55,10 @@ sub validate_non_context_param
         {
                 return $v =~ /^\d+|all$/;
         }
+        elsif( $k eq 'fields' )
+        {
+                return $v =~ /^value|datestamp|eprintid|set_value$/;
+        }
         elsif( $k eq 'date_resolution' )
         {
                 return $v =~ /^day|month|year$/;
@@ -77,6 +81,10 @@ sub validate_non_context_param
 		# https://perldoc.perl.org/perlrecharclass#Bracketed-Character-Classes
 		return $v =~ /^[[:print:]]+$/;
 	}
+        elsif( $k =~ /^do_render|human_display|show_count|show_more|show_order$/ )
+        {
+                return $v =~ /^0|1$/; 
+        }
         elsif( $k =~ /^export|top|view|container_id$/ )
         {
                 return $v =~ /^[\w\.\-\:]+$/; #NB \w includes underscore, digit
