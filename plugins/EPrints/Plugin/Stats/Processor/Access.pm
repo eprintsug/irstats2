@@ -298,16 +298,22 @@ sub transform
 		referent_docid => $row->[12],
 	};
 
-	my $hour = sprintf( "%02d", $row->[4] );	
-	my $day = sprintf( "%02d", $row->[3]);
-	my $month = sprintf( "%02d", $row->[2]);
+	# Deal with bad data. If an access has failed to store in the DB, the row will have an acecssid but no other data.
+	# The 'filters' are applied after this transform has taken place.
+	# If we just returned undef from this method, it would exit the processing loop too early.
 	my $year = $row->[1];
+	if( defined $year )
+	{
+		my $hour = sprintf( "%02d", $row->[4] );	
+		my $day = sprintf( "%02d", $row->[3] );
+		my $month = sprintf( "%02d", $row->[2] );
 
-	$h->{datestamp} = {
-		hour => $hour, day => $day, month => $month, year => $year,
-		cache => "$year$month$day",
-		epoch => timegm_nocheck $row->[6]||0,$row->[5]||0,$row->[4],$row->[3],$row->[2]-1,$row->[1]-1900,
-	};
+		$h->{datestamp} = {
+			hour => $hour, day => $day, month => $month, year => $year,
+			cache => "$year$month$day",
+			epoch => timegm_nocheck $row->[6]||0,$row->[5]||0,$row->[4],$row->[3],$row->[2]-1,$row->[1]-1900,
+		};
+	}
 
 	$self->{last_record} = $h;
 
