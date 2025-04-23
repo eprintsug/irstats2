@@ -11,7 +11,7 @@ $c->{irstats2}->{datasets} = {
 
 	eprint => { incremental => 0 },
 	
-	access => { filters => [ 'Robots', 'Repeat'] },
+	access => { filters => [ 'BadAccessData', 'Robots', 'Repeat'] },
 
 	history => { incremental => 1 },
 
@@ -501,6 +501,7 @@ $c->{plugins}{"Stats::Filter::Robots"}{params}{disable} = 0;
 $c->{plugins}{"Stats::Filter::Repeat"}{params}{disable} = 0;
 #MM 04/05/2017 - New filter for IP addresses
 $c->{plugins}{"Stats::Filter::LocalIP"}{params}{disable} = 0;
+$c->{plugins}{"Stats::Filter::BadAccessData"}{params}{disable} = 0;
 
 
 $c->{plugins}{"Stats::Processor::Access"}{params}{disable} = 0;
@@ -528,6 +529,7 @@ $c->{plugins}{"Stats::View::Google::Spark"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::Grid"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::KeyFigures"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::ReportHeader"}{params}{disable} = 0;
+$c->{plugins}{"Stats::View::StaticContent"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::Table"}{params}{disable} = 0;
 
 $c->{plugins}{"Stats::View::D3::Graph"}{params}{disable} = 0;
