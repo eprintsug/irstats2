@@ -11,10 +11,19 @@
 
 $c->{irstats2}->{cacheables} = {
     "archive_count" => sub {
-        my( $repo ) = @_;
+        my( $repo, $handler ) = @_;
 
         my $ds = $repo->dataset( "archive" );
         
         return $ds->count;
+    },
+    "full_text_count" => sub {
+        my( $repo, $handler ) = @_;
+    
+        my $ctx = $handler->context( {
+            datatype => "doc_access",
+            datafilter => "full_text",
+        } );
+        return $handler->data( $ctx )->select()->sum_all();
     }
 };
