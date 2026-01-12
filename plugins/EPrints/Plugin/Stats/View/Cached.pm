@@ -16,15 +16,17 @@ sub javascript_class
     return 'Cached';
 }
 
-sub render_content_ajax
+sub ajax
 {
     my( $self ) = @_;
 
-    my $count = $self->handler->data( $self->context )->select()->data();
+    my $data = $self->handler->data( $self->context )->select()->data();
 
-    my $span = $self->{session}->make_element( 'span', class => 'irstats2_counter_value' );
-    $span->appendChild( $self->{session}->make_text( $count ) );
-    return $span;
+    binmode( STDOUT, ":utf8" );
+
+    print STDOUT $data if( defined $data );
+
+    return;
 }
 
 1;
