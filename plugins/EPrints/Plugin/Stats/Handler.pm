@@ -3,6 +3,7 @@ package EPrints::Plugin::Stats::Handler;
 our @ISA = qw/ EPrints::Plugin /;
 
 use Date::Calc;
+use POSIX qw( strftime );
 use strict;
 
 my $INTERNAL_TABLE = 'irstats2_internal';
@@ -229,6 +230,37 @@ sub extract_eprint_data
 	# Dates are normalised by Stats::Context
 	my $dates = $context->dates;
 	my( $from, $to ) = ( $dates->{from}, $dates->{to} );
+	
+	# Set from date to at least since eprint went live or tomorrow if eprint not yet live. This is so confusing pre-live downloads (where uploading user has tested download link) do not get shown in graph.
+	my $really_from = $from;
+	if ( defined $context->{set_value} && $context->{set_value} =~ m/^\d+/ && $context->{datatype} !~ m/^cache_/ )
+	{
+		my $eprint = $self->{session}->dataset( 'eprint' )->dataobj( $context->{set_value} );
+		if ( defined $eprint )
+		{
+			if ( my $datestamp = $eprint->get_value( 'datestamp' ) )
+			{
+				my @dtbits = split( /[- :]/, $datestamp );
+				my $new_really_from = $dtbits[0] . $dtbits[1] . $dtbits[2];
+				if ( !defined $really_from || $really_from < $new_really_from )
+				{
+					$really_from = $new_really_from;
+				}
+				unless ( defined $to )
+				{
+					$to = strftime( '%Y%m%d', localtime() );
+				}
+			}	
+			else
+			{
+				$really_from = strftime( '%Y%m%d', localtime( time + 86400 ) ); 
+				unless ( defined $to )
+				{
+					$to = $really_from;
+				}
+			}
+		}
+	}
 
 	# Datafilters provide extra filtering of rows.
 	my $datafilter = $context->{datafilter};
@@ -291,17 +323,17 @@ sub extract_eprint_data
 	my @conditions;	
 
 	# time/datestamp conditions
-	if( defined $from && defined $to )
+	if( defined $really_from && defined $to )
 	{
 		my $Q_datestamp = $self->{dbh}->quote_identifier( 'datestamp' );
-		my $Q_from = $self->{dbh}->quote_int( $from );
+		my $Q_from = $self->{dbh}->quote_int( $really_from );
 
-		if( $from < $to )
+		if( $really_from < $to )
 		{
 			my $Q_to = $self->{dbh}->quote_int( $to );
 			push @conditions, "$Q_datestamp >= $Q_from AND $Q_datestamp <= $Q_to";
 		}
-		elsif( "$from" eq "$to" )
+		elsif( "$really_from" eq "$to" )
 		{
 			push @conditions, "$Q_datestamp = $Q_from";
 		}
@@ -616,12 +648,68 @@ sub extract_set_data
 	return \@results;
 }
 
+# Inserts a group of records into the database. This inserts multiple rows
+# using one INSERT statement for performance. In practice, this needs to be
+# batched so that a single INSERT statement does not exceed database limits.
+
+sub save_data_values_aux
+{
+	my( $self, $tablename, $columns, $rows ) = @_;
+
+	my $sql = "INSERT INTO ".$self->{dbh}->quote_identifier( $tablename );
+	$sql .= " (".join(",", map { $self->{dbh}->quote_identifier($_) } @$columns).")";
+	$sql .= " VALUES ";
+
+	my $row_template = "(".join(",", map { '?' } @$columns)."),";
+
+	foreach my $row (@$rows)
+	{
+		$sql .= $row_template;
+	}
+
+	$sql =~ s/,$//;
+
+	my $sth = $self->{dbh}->prepare($sql);
+
+	my $i = 1;
+
+	$self->{dbh}->begin;
+
+	foreach my $row (@$rows)
+	{
+		my( $counter, $epid, $date, $value, $count ) = @$row;
+
+		{
+			# Make sure value is not too long (even if utf8-mb4)
+			use bytes;
+			if ( length( $value ) > 767 )
+			{
+				no bytes;
+				$value = substr( $value, 0, 191 );
+			}
+		}
+
+		$sth->bind_param( $i++, $counter );
+		$sth->bind_param( $i++, $epid );
+		$sth->bind_param( $i++, $date );
+		$sth->bind_param( $i++, $value );
+		$sth->bind_param( $i++, $count );
+	}
+
+	my $rc = $sth->execute();
+
+	$self->{dbh}->commit;
+
+	return $rc;
+}
 
 # Saves processed data to the correct table
 # called by Processor::{class}::{type}->commit_data()
 sub save_data_values
 {
 	my( $self, $datatype, $data ) = @_;
+
+	my $batch_limit = 1000;
 
 	my $tablename = "irstats2_$datatype";
 	$data ||= {};
@@ -630,35 +718,39 @@ sub save_data_values
 
 	my $columns = [ 'uid', 'eprintid', 'datestamp', 'value', 'count' ];
 
-        my $sql = "INSERT INTO ".$self->{dbh}->quote_identifier( $tablename );
-        $sql .= " (".join(",", map { $self->{dbh}->quote_identifier($_) } @$columns).")";
+	my $rc = 1;
 
-        $sql .= " VALUES ";
-        $sql .= "(".join(",", map { '?' } @$columns).")";
+	# Batch values into groups.
 
-        my $sth = $self->{dbh}->prepare($sql);
+	my @rows;
 
-        my $rc = 1;
-        my $i = 0;
-        foreach my $date ( keys %{$data} )
-        {
-                foreach my $epid ( keys %{$data->{$date}} )
-                {
-						$self->{dbh}->begin;
-						
-                        foreach my $value ( keys %{$data->{$date}->{$epid}} )
-                        {
-                                $i = 0;
-                                $sth->bind_param( ++$i, $_ ) for( ( $counter, $epid, $date, $value, ($data->{$date}->{$epid}->{$value}) ) );
-                                $rc &&= $sth->execute();
-                                $counter++;
-                        }
-						
-						$self->{dbh}->commit;
-                }
-        }
+	foreach my $date ( keys %{$data} )
+	{
+		foreach my $epid ( keys %{$data->{$date}} )
+		{
+			foreach my $value ( keys %{$data->{$date}->{$epid}} )
+			{
+				push @rows, [ $counter++, $epid, $date, $value, $data->{$date}->{$epid}->{$value} ];
 
-        return $rc;
+				# If we have a full batch of rows to save, then save them.
+
+				if( scalar( @rows ) > $batch_limit )
+				{
+					$rc &&= $self->save_data_values_aux( $tablename, $columns, \@rows );
+					@rows = ();
+				}
+			}
+		}
+	}
+
+	# If there is a partial batch left over at the end then save it.
+
+	if( scalar( @rows ) > 0 )
+	{
+		$rc &&= $self->save_data_values_aux( $tablename, $columns, \@rows );
+	}
+
+	return $rc;
 }
 
 
@@ -890,8 +982,7 @@ sub create_sets_tables
 	push @fields, EPrints::MetaField->new(
 			repository => $session->get_repository,
 			name => "rendered_set_value",
-			type => "text",
-			maxlength => 255,
+			type => "longtext",
 			sql_index => 0
 	);
 		
@@ -903,13 +994,13 @@ sub create_sets_tables
 sub valid_set_value
 {
         my( $self, $set_name, $set_value ) = @_;
-        
+
         return 0 unless( defined $set_name && defined $set_value );
 
         # TODO can do better than that?
         if( $set_name eq 'eprint' )
         {
-            my $eprint_ds = $self->{session}->config( 'irstats2', 'eprint_dataset' ) || "archive";
+            my $eprint_ds = $self->{session}->config( 'irstats2', 'eprint_dataset' ) || "eprint";
             return (defined $self->{session}->dataset( $eprint_ds )->dataobj( $set_value ) ) ? 1 : 0;
         }
 

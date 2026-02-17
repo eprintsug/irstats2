@@ -22,6 +22,7 @@ sub new
 	# default options		
 	$self->options->{date_resolution} ||= 'day';
 	$self->options->{graph_type} ||= 'area';
+	$self->options->{cumulative} ||= 0;
 
 	return $self;
 }
@@ -43,6 +44,7 @@ sub mimetype { 'application/json' }
 sub get_data
 {
 	my( $self ) = @_;
+
 	# the FROM/TO dates might need to be normalised if the date resolution is "month" or "year" (cos it's better to start at the beginning of the month/year for those)
 	my $from = $self->context->dates->{from};
 
@@ -51,7 +53,7 @@ sub get_data
 		if( defined $from && $from =~ /^(\d{4})(\d{2})(\d{2})$/ )
 		{
 			$from = $1.$2.'01';
-			$self->context->dates( { from => $from } );
+			$self->context->dates( { from => $from, range => undef } );
 		}
 	}
 	elsif( $self->options->{date_resolution} eq 'year' )
@@ -59,7 +61,7 @@ sub get_data
 		if( $from =~ /^(\d{4})(\d{2})(\d{2})$/ )
 		{
 			$from = $1.'0101';
-			$self->context->dates( { from => $from } );
+			$self->context->dates( { from => $from, range => undef } );
 		}
 	}
 
@@ -118,8 +120,8 @@ sub get_data
 			{
 				# safety measure - not to be stuck on the 1st data point (though this probably means something is wrong in Utils::get_dates
 
-#               commented out the following line: This line seem to cause stats discrepancies. https://github.com/eprints/irstats2/issues/69
-#                $i++ if( $i == 0 );
+				# commented out the following line: This line seem to cause stats discrepancies. https://github.com/eprints/irstats2/issues/69
+				# $i++ if( $i == 0 );
 
 				last;
 			}
@@ -145,7 +147,7 @@ sub get_data
 		}
 
 		my $record = { count => $subtotal, datestamp => $ds, description => $desc };
-	
+
 		$avg_sum += $subtotal; # keep a sum of all the counts for potential future data clearing up, even if we don't need it to show an average
 		if( $show_average )
 		{
@@ -154,7 +156,6 @@ sub get_data
 
 		push @exports, $record;
 	}
-	
 
 	# clean up the data if we all have all 0s... Google Graphs get a bit upset in these circumstances and include pointless negative y-axes
 	if( $avg_sum == 0 )
@@ -168,6 +169,18 @@ sub get_data
 
 	# TODO needs new name:
 	$stats->{data} = \@exports;
+
+	if( $has_data && ( $self->options->{cumulative} eq "true" ) )
+	{
+		my $sum = 0;
+
+		for my $datum ( @{ $stats->{data} } )
+		{
+			$datum->{count} += $sum;
+
+			$sum = $datum->{count};
+		}
+	}
 
 	# "has_data" in the sense that: has at least one non-zero data point
 	$stats->{has_data} = $has_data;
@@ -198,18 +211,21 @@ sub ajax
 	
 	my $graph_type = $self->options->{graph_type} || 'area';	# or 'column'
 
-	print STDOUT "{ \"data\": [$json_data_points], \"type\": \"$graph_type\", \"show_average\": ".($self->options->{show_average}?'true':'false');
+	my $response = "{ \"data\": [$json_data_points], \"type\": \"$graph_type\", \"show_average\": ".($self->options->{show_average}?'true':'false');
 
 	if( exists $stats->{has_data} && !$stats->{has_data} )
 	{
 		my $msg = $self->phrase( 'no_data_point' );
 		$msg =~ s/"/\\"/g;
-		print STDOUT ", \"msg\": \"$msg\"";
+		$response .= ", \"msg\": \"$msg\"";
 	}
 
-	print STDOUT "}";
+	$response .= "}";
 
-	return;
+	binmode( STDOUT, ":utf8" );
+	print STDOUT $response;
+	return $response; ## returning the value for caching.
+
 }
 
 sub export

@@ -2,6 +2,99 @@
 
 $c->{irstats2} = {};
 
+##dateformat on the report screen
+$c->{irstats2}->{dateformat} = "DD/MM/YYYY";
+
+
+
+##caching statistics
+$c->{irstats2}->{cache_enabled} = 1;
+$c->{irstats2}->{cache_dir} =  $EPrints::SystemSettings::conf->{base_path}."/tmp/stats";  ##irstats cache dir. The cache dir is cleared daily by processstats script.
+
+if ($c->{irstats2}->{cache_enabled})
+{
+	`mkdir -p $c->{irstats2}->{cache_dir}`;
+	if( !-d $c->{irstats2}->{cache_dir} )
+	{
+	      EPrints->abort( "IRStats2 failed to create cache directory '$c->{irstats2}->{cache_dir}'" );
+	}
+}
+
+$c->{irstats2}->{cache_paths} = [
+	"/stats/report",
+	"/stats/report/requests"
+];
+
+$c->{plugins}{"Stats::Processor::Access::DocDownloads"}{params}{disable} = undef;
+
+# The following utility routines can be used for inserting the charts into a summary page, eg
+#
+# my $util = $repository->get_conf( "irstats2", "util" );
+# if( $util )
+# {
+#   $page->appendChild( &{$util->{render_summary_page_totals}}( $repository, $eprint ) );
+#   $page->appendChild( &{$util->{render_summary_page_docs}}( $repository, $eprint ) );
+# }
+
+# render the stats summary chart if there is at least one public document
+$c->{irstats2}->{util}->{render_summary_page_totals} = sub
+{
+  my ( $repository, $eprint ) = @_;
+
+  my $count = 0;
+  foreach my $doc ( $eprint->get_all_documents )
+  {
+    next unless $doc->is_public();
+    $count++;
+  }
+
+  my $frag = $repository->xml()->create_document_fragment();
+  if( $count )
+  {
+    $frag->appendChild(
+      $repository->html_phrase(
+        "lib/irstats2:embedded:summary_page:eprint:downloads",
+        "eprintid" => $repository->make_text( $eprint->get_value( "eprintid" ) )
+      )
+    );
+  }
+
+  return $frag;
+};
+
+# render the stats chart for each public document, assuming there is more than 1
+$c->{irstats2}->{util}->{render_summary_page_docs} = sub
+{
+  my ( $repository, $eprint ) = @_;
+
+  my $count = 0;
+  my $doc_stats = $repository->make_element( "div", class => "irstats2_summary_page_doc_stats_container" );
+  foreach my $doc ( $eprint->get_all_documents )
+  {
+    next unless $doc->is_public();
+    $count++;
+
+    $doc_stats->appendChild(
+      $repository->html_phrase(
+        "lib/irstats2:embedded:summary_page:eprint:doc_downloads",
+        "eprintid" => $repository->make_text( $doc->get_id ),
+        "doc_name" => $repository->make_text( $doc->get_value( "main" ) ),
+        "container_id_div" => $repository->make_element("div", id => "irstats2_summary_page_doc_downloads_".$doc->get_id, class => "irstats2_graph" ),
+        "container_id" => $repository->make_text( "irstats2_summary_page_doc_downloads_" . $doc->get_id )
+      )
+    );
+  }
+
+  if( $count > 1 )
+  {
+    return $doc_stats;
+  }
+  else # 0 or 1 docs, dont need a doc level breakdown
+  {
+    return $repository->xml()->create_document_fragment()
+  }
+};
+
 ##################
 # Data Processing
 ##################
@@ -11,12 +104,48 @@ $c->{irstats2}->{datasets} = {
 
 	eprint => { incremental => 0 },
 	
-	access => { filters => [ 'Robots', 'Repeat'] },
+	access => { filters => [ 'Robots', 'Repeat' ] },
 
 	history => { incremental => 1 },
 
 #	user => { incremental => 0 },
 };
+
+##################
+# Data Collection
+##################
+
+# This version of IRStats2 can maintain the access data as TSV files in
+# $ARCHIVE_ROOT/var/access as well as / instead of the access table in the
+# database.
+#
+# If you do not need data to be collected into the access table then the access
+# table logger can be disabled by setting "access_table_logger_disabled" to 1.
+#
+# This version of IRStats2 only reads from the file log files and so disabling
+# the file logger will prevent updates to the stats even if the table logger
+# is still enabled.
+
+$c->{access_table_logger_disabled} = 0;
+$c->{access_file_logger_disabled} = 0;
+
+$c->{access_logger_func} = sub {
+
+	my( $repository, $epdata ) = @_;
+
+	my $access_file_logger_disabled = $repository->config( "access_file_logger_disabled" );
+
+	unless( defined( $access_file_logger_disabled ) && $access_file_logger_disabled )
+	{
+		my $logger = $repository->plugin( "Stats::Logger" );
+
+		if( defined( $logger ) )
+		{
+			$logger->create_access( $epdata );
+		}
+	}
+};
+
 
 #######
 # Sets
@@ -32,11 +161,11 @@ $c->{irstats2}->{datasets} = {
 $c->{irstats2}->{sets} = [
 	{ 
 		'field' => 'divisions', 
-		'groupings' => [ 'authors' ]
+		'groupings' => [ 'authors', 'type' ]
 	},
 	{ 
 		'field' => 'subjects', 
-		'groupings' => [ 'authors' ]
+		'groupings' => [ 'authors', 'type' ]
 	},
 	{
 		'name' => 'type',
@@ -73,15 +202,14 @@ $c->{irstats2}->{sets} = [
 #	{ 'field' => 'userid' },
 ];
 
-
+# Define the order sets should be displayed if this is important, (e.g. for Filters).
+# $c->{irstats2}->{sets_order} = [ qw/ divisions subjects type authors / ];
 
 ###############
 # Misc Options
 ###############
-##only show live items in the stats
-$c->{irstats2}->{show_archive_only} = 1;
 
-## the dataset to use when making individual eprint queries, i.e. do we show stats for any valid eprint id regardless of sub dataset (the new default position), or do we revert to showing all repository stats for items not in the live archive (the old default position, but shows wrong numbers in the previews for items not in the live archive)
+## the dataset to use when making individual eprint queries, i.e. do we show stats for any valid eprint id regardless of sub dataset, or do we revert to showing all repository stats for items not in the live archive. As these stats can be cached before an item is moved to the live archive and there is no generic use case of showing all repository stats if a chosen eprint is not yet in the archive, the default is 'eprint' rather than 'archive'.
 $c->{irstats2}->{eprint_dataset} = "eprint";
 
 # by default, anyone can view the stats. Comment out to enable only users with the special '+irstats2/view' role to view stats.
@@ -105,7 +233,8 @@ $c->{irstats2}->{allow} = sub {
 #                                        'Referer' );
 #		if( defined $referer )
 #		{
-#			my $hostname = $session->config( 'host' ) or return 0;
+#			my $hostname = defined $session->config( 'host' ) ? $session->config( 'host' ) : $session->config( 'securehost' );
+#			return 0 unless defined $hostname;
 #
 #			return 1 if( $referer =~ /^https?:\/\/$hostname\/\d+\/?$/ );
 #		}
@@ -126,52 +255,16 @@ $c->{irstats2}->{allow} = sub {
 # $c->{irstats2}->{local_domains} = { "ECS Intranet" => "\\.ecs\\.soton\\.ac\\.uk", "University Intranet" => "\\.soton\\.ac\\.uk" };
 
 #IPs additional to http://www.eprints.org/resource/bad_robots/robots_ip.txt to not include in stats
-#$c->{irstats2}->{robot_ip} = [ ];
+#$c->{irstats2}->{robots_ip} = [ ];
 
 #UAs additional to http://www.eprints.org/resource/bad_robots/robots_ua.txt to not include in stats
-#$c->{irstats2}->{robot_ua} = [ ];
+#$c->{irstats2}->{robots_ua} = [ ];
 
 
 # time-out for the so-called "double-click" filtering - default to 3600 secs = 1 hour
+# Default setting - 3600 secs = 1 hour
+# Current setting - 3600 * 24 = 24 hours
 $c->{plugins}->{"Stats::Filter::Repeat"}->{params}->{timeout} = 3600 * 24;
-
-# prevents EPrints 3.2 from breaking (because that trigger isn't implemented in that versin of EPrints)
-# the value '16' comes from EPrints::Const::EP_TRIGGER_DYNAMIC_TEMPLATE
-$EPrints::Plugin::Stats::EP_TRIGGER_DYNAMIC_TEMPLATE ||= 16;
-
-# Trigger to load the Google Charts library from the template(s)
-$c->add_trigger( $EPrints::Plugin::Stats::EP_TRIGGER_DYNAMIC_TEMPLATE, sub
-{
-        my( %args ) = @_;
-
-        my( $repo, $pins ) = @args{qw/ repository pins/};
-
-        my $head = $repo->make_doc_fragment;
-
-        $head->appendChild( $repo->make_javascript( undef,
-                src => "https://www.gstatic.com/charts/loader.js"
-        ) );
-
-        $head->appendChild( $repo->make_javascript( 'google.load("visualization", "48", {packages:["corechart", "geochart"]});' ) );
-
-        if( defined $pins->{'utf-8.head'} )
-        {
-                $pins->{'utf-8.head'} .= $repo->xhtml->to_xhtml( $head );
-        }
-
-        if( defined $pins->{head} )
-        {
-                $head->appendChild( $pins->{head} );
-                $pins->{head} = $head;
-        }
-        else
-        {
-                $pins->{head} = $head;
-        }
-
-        return EP_TRIGGER_OK;
-} );
-
 
 # Hide the link to the reports by default:
 $c->{plugins}->{"Screen::IRStats2::Report"}->{appears}->{key_tools} = undef;
@@ -181,6 +274,8 @@ $c->{plugins}->{"Screen::IRStats2::Report::AuthReport"}->{appears}->{key_tools} 
 # Reports
 ##########
 
+# Hide the link to the reports by default:
+$c->{plugins}->{"Screen::IRStats2::Report"}->{appears}->{key_tools} = undef;
 
 #
 #	Reports definition
@@ -233,7 +328,7 @@ $c->{irstats2}->{report} = {
 				options => {
 					date_resolution => 'month',
 					graph_type => 'column',
-					show_average => 1
+					show_average => 0
 				},
 			},
 			{
@@ -275,9 +370,9 @@ $c->{irstats2}->{report} = {
 		{ plugin => 'Google::Graph', 
 			datatype => 'downloads',
 			options => {
-                                date_resolution => 'month',
-                                graph_type => 'column',
-                        },
+				date_resolution => 'month',
+				graph_type => 'column',
+			},
 		 },
 		{ plugin => 'KeyFigures',
 			options => {
@@ -291,7 +386,7 @@ $c->{irstats2}->{report} = {
 	authors => {
 		items => [ 
 			{ plugin => 'ReportHeader' },
-			{ 
+			{
 				plugin => 'Google::Graph', 
 				datatype => 'downloads',
 				options => {
@@ -299,7 +394,7 @@ $c->{irstats2}->{report} = {
 					graph_type => 'column',
 				},
 			},
-			{ 
+			{
 				plugin => 'KeyFigures',
 				options => {
 					metrics => [ 'downloads.spark', 'hits.spark' ],
@@ -384,7 +479,7 @@ $c->{irstats2}->{report} = {
 				options => {
 					date_resolution => 'month',
 					graph_type => 'column',
-					show_average => 1
+					show_average => 0
 				}
 			},
 			{
@@ -499,9 +594,6 @@ $c->{plugins}{"Stats::Export::XML"}{params}{disable} = 0;
 
 $c->{plugins}{"Stats::Filter::Robots"}{params}{disable} = 0;
 $c->{plugins}{"Stats::Filter::Repeat"}{params}{disable} = 0;
-#MM 04/05/2017 - New filter for IP addresses
-$c->{plugins}{"Stats::Filter::LocalIP"}{params}{disable} = 0;
-
 
 $c->{plugins}{"Stats::Processor::Access"}{params}{disable} = 0;
 $c->{plugins}{"Stats::Processor::Access::Browsers"}{params}{disable} = 0;
@@ -535,13 +627,16 @@ $c->{plugins}{"Stats::View::D3::Graph"}{params}{disable} = 0;
 $c->{plugins}{"Screen::IRStats2::Report"}{params}{disable} = 0;
 $c->{plugins}{"Screen::IRStats2::Report::AuthReport"}{params}{disable} = 0;
 
-# Display download stats for an EPrints on it's summary page?
-# Confusingly, set this to '0' to make them appear, or 1 to not show them
+# Display download stats for an eprint on it's summary page?
+# Confusingly, set this to 0 to make them appear, or 1 to not show them.
+
 $c->{plugins}{"Screen::EPrint::Box::Stats"}{params}{disable} = 1;
+
 # Where on the summary page should they appear?
 # Valid options are 'summary_left', 'summary_right', 'summary_bottom', 'summary_top'.
 # The default is 'summary_bottom' - the following 2 lines demonstrate how to move it
 # somewhere else
+
 #$c->{plugins}{"Screen::EPrint::Box::Stats"}{appears}{summary_bottom} = undef;
 #$c->{plugins}{"Screen::EPrint::Box::Stats"}{appears}{summary_right} = 1000;
 
@@ -560,3 +655,6 @@ for my $report_name (keys %{$c->{irstats2}->{report}})
     }
     $c->{irstats2}->{report}->{$report_name}->{items} = \@new_items;
 }
+
+# If you are embedding in abstract pages using a phrase set below to 1.
+$c->{irstats2}->{abstract_embed} = 0;

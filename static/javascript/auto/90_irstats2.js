@@ -53,7 +53,6 @@ var EPJS_Stats = Class.create({
 	},
 
 	get_context_fields: function() {
-
 		return [ 'datatype', 'datafilter', 'grouping', 'set_name', 'set_value', 'range', 'to', 'from', 'cache' ];
 	},
 
@@ -129,7 +128,7 @@ var EPJS_Stats = Class.create({
 
 	// will show the loading ajax spin	
 	wait: function() {
-		$( this.container_id ).insert( new Element( 'img', { 'border': '0', 'class': 'irstats2_spin', 'src': '/style/images/loading.gif' } ) );
+		$( this.container_id ).insert( new Element( 'img', { 'border': '0', 'class': 'irstats2_spin', 'src': '/style/images/loading.gif', 'alt': 'Loading...' } ) );
 		$( this.container_id ).insert( '<span class="irstats2_loading">Loading...</span>' );
 	}
 
@@ -228,9 +227,10 @@ var EPJS_Stats_GoogleGraph = Class.create(EPJS_Stats, {
 
 	initialize: function($super,params) {
 
-        	$super( params );
+		$super( params );
 		this.view = 'Google::Graph';
 		this.draw();
+		this.color = params.options.color;
 	},
 	
 	ajax: function($super,response) {
@@ -238,7 +238,7 @@ var EPJS_Stats_GoogleGraph = Class.create(EPJS_Stats, {
 		$super();
 
 		var json = response.responseText.evalJSON();
-		
+
 		var container = $( this.container_id );
 
 		// potential error message (eg. no data points)
@@ -260,15 +260,12 @@ var EPJS_Stats_GoogleGraph = Class.create(EPJS_Stats, {
 
 		var data = new google.visualization.DataTable();
 		data.addColumn('string', 'Year');
-		data.addColumn('number', ' ');
+		data.addColumn('number', 'Count');
 
 		if( json.show_average )
 			data.addColumn('number', ' ');
 
 		data.addRows( jsdata );
-
-		var w = container.getWidth() - 20;
-		var h = container.getHeight() - 10;
 
 		var type = json.type;
 		var chart;
@@ -284,16 +281,24 @@ var EPJS_Stats_GoogleGraph = Class.create(EPJS_Stats, {
 		}
 
 		var options = {
-			width: w, 
-			height: h,
 			lineWidth: 3, 
 			hAxis: {
-				slantedText: false,
-				maxAlternation: 1 },
+				slantedText: irstats2_slantedText,
+				slantedTextAngle: 12,
+				textPosition: "out",
+				maxAlternation: 1
+			},
 			legend: 'none', 
 			vAxis: {
 				viewWindowMode: 'explicit', 
-				viewWindow: { min: 0 } }
+				viewWindow: { min: 0 }
+			},
+			chartArea: {  width: "84%", },
+		}
+		
+		if( this.color )
+		{
+			options.colors = [ this.color ];
 		}
 
 		if( json.show_average )
@@ -303,8 +308,33 @@ var EPJS_Stats_GoogleGraph = Class.create(EPJS_Stats, {
 		}
 
 		chart.draw( data, options );
+		irstats2_register( chart, data, options );
 	}
 });
+
+var irstats2_slantedText = true;
+
+// cache the data needed to redraw any charts.
+// call irstats2_redraw() when the layout or size of the page has been changed
+
+var irstats2_cache = [];
+var irstats2_cache_count = 0;
+
+function irstats2_register( chart, data, options )
+{
+	irstats2_cache[ "chart_"+irstats2_cache_count ] = chart;
+	irstats2_cache[ "data_"+irstats2_cache_count ] = data;
+	irstats2_cache[ "options_"+irstats2_cache_count ] = options;
+	irstats2_cache_count++;
+}
+
+function irstats2_redraw()
+{
+	for( i=0; i<irstats2_cache_count; i++ )
+	{
+		irstats2_cache["chart_"+i].draw( irstats2_cache["data_"+i], irstats2_cache["options_"+i] );
+	}
+}
 
 var EPJS_Stats_GoogleSpark = Class.create(EPJS_Stats, {
 
@@ -325,7 +355,7 @@ var EPJS_Stats_GoogleSpark = Class.create(EPJS_Stats, {
 
 		var data = new google.visualization.DataTable();
 		data.addColumn('string', 'Year');
-		data.addColumn('number', ' ');
+		data.addColumn('number', 'Count');
 		data.addRows( jsdata );
 
 		var container = $( this.container_id );
@@ -333,8 +363,7 @@ var EPJS_Stats_GoogleSpark = Class.create(EPJS_Stats, {
 		var h = container.getHeight();
 
 		var chart = new google.visualization.AreaChart(container);
-
-		chart.draw( data, {
+		var options = {
 				width: w, 
 				height: h,
 				lineWidth: 1, 
@@ -346,12 +375,15 @@ var EPJS_Stats_GoogleSpark = Class.create(EPJS_Stats, {
 				},
 				legend: 'none', 
 				vAxis: {
-					textColor: '#ffffff',
+					textColor: '#ffffff',					
+					textPosition: 'none',
 					viewWindowMode: 'explicit', 
 					viewWindow: { min: 0 },
 					gridlines: { color: '#ffffff' } 
 				}
-	 	} );
+		};
+		chart.draw(data, options);
+		irstats2_register( chart, data, options );		
 	}
 });
 
@@ -359,7 +391,7 @@ var EPJS_Stats_GoogleGeoChart = Class.create(EPJS_Stats, {
 
 	initialize: function($super,params) {
 
-        	$super( params );
+		$super( params );
 		this.view = 'Google::GeoChart';
 		this.draw();
 	},
@@ -383,6 +415,7 @@ var EPJS_Stats_GoogleGeoChart = Class.create(EPJS_Stats, {
 		var options = {'width':w, 'height':h};
 		var chart = new google.visualization.GeoChart( container );
 		chart.draw(data, options);
+		irstats2_register( chart, data, options );
 	}
 });
 
@@ -411,9 +444,10 @@ var EPJS_Stats_GooglePieChart = Class.create(EPJS_Stats, {
 		var w = container.getWidth() - 20;
 		var h = container.getHeight() - 10;
 		
-		var options = {'width':w, 'height':h};
+		var options = {'width':w, 'height':h, chartArea: { width: "80%", height: "85%" }};
 		var chart = new google.visualization.PieChart( container );
 		chart.draw(data, options);
+		irstats2_register( chart, data, options );
 	}
 });
 
@@ -561,3 +595,25 @@ var EPJS_Stats_Export_Toggle = function( el, content_id, show_text='Show export 
 	}
 	return false;
 };
+
+
+
+var EPJS_drange_convert = function(){
+    var range = jQuery('#drange').val().split(" - ");
+    var from = moment(range[0],dateformat);
+    jQuery.query.SET('from', from.format("YYYYMMDD"));
+    var to = moment(range[1],dateformat);
+    jQuery.query.SET('to', to.format("YYYYMMDD"));
+
+
+    jQuery.query.SET('date_resolution',jQuery("input[name='date_resolution']:checked").val());
+    var newpath = window.location.origin + window.location.pathname + jQuery.query.toString()
+    location = newpath;
+
+    return false;
+
+};
+
+
+
+
