@@ -31,7 +31,7 @@ sub from
 	my $processor = $self->{processor};
 	$processor->{stats}->{handler} = $self->{session}->plugin( 'Stats::Handler' );
 
-	$processor->{context} = $processor->{stats}->{handler}->context()->from_request( $self->{session} );
+	$processor->{context} = $processor->{stats}->{handler}->context()->from_request;
 
 	my $report = $processor->{context}->current_report;
 	my $conf = $self->{session}->config( 'irstats2', 'auth_report', $report );
