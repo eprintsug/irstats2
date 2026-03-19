@@ -14,6 +14,7 @@ var EPJS_Stats = Class.create({
 
 //		this.queue_lock = false;
 //		this.run_lock = true;
+
 		if( params == null )
 		{
 			alert( 'Missing params in EPJS_Stats' );
@@ -37,6 +38,7 @@ var EPJS_Stats = Class.create({
 
 		this.context = new Hash(context);
 		this.options = new Hash(options);
+
 		this.ajax_params = new Hash();
 
 		var my_context = this.get_context_fields();
@@ -251,7 +253,7 @@ var EPJS_Stats_GoogleGraph = Class.create(EPJS_Stats, {
 
 			if( elparent != null )
 			{
-				elparent.update( "<p>" + msg + "</p>" );
+				elparent.update( "<div id='" + elparent.id + "_inner'><p>" + msg + "</p></div>" );
 				return;
 			}
 		}

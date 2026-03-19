@@ -102,6 +102,23 @@ foreach my $dataset_id ( keys %$dataset_ids )
 	$handler->process_dataset( $dataset_id, $conf );
 }
 
+$handler->log( "Clearing cache" );
+my $cache_dir = $session->config( 'irstats2', 'cache_dir' );
+`find $cache_dir/ -maxdepth 1 -type f -name '*.ir2' -delete`; # Use find rather than rm in case there are a lot of files
+
+my $cache_paths = $session->config( 'irstats2', 'cache_paths' );
+if ( defined $cache_paths )
+{
+	$handler->log( "Requesting stats pages to be cached" );
+	for my $cache_path ( @$cache_paths )
+	{
+		my $full_cache_path = $session->config("rel_cgipath") . $cache_path;
+		$handler->log( "Caching $full_cache_path" );
+		EPrints::Plugin::Stats::Utils::cache_report( $session, $handler, $full_cache_path );
+
+	}
+}
+
 if( EPrints::Utils::is_set( $session->config( "irstats2", "cacheables" ) ) )
 {
     my $cache_dir = $session->config( "variables_path" )."/stats";
@@ -122,23 +139,6 @@ if( EPrints::Utils::is_set( $session->config( "irstats2", "cacheables" ) ) )
 }
 
 $handler->log( "Leaving now" );
-
-
-$handler->log( "Clearing cache" );
-my $cache_dir = $session->config( 'irstats2', 'cache_dir' );
-`find $cache_dir/ -maxdepth 1 -type f -name '*.ir2' -delete`; # Use find rather than rm in case there are a lot of files
-
-my $cache_paths = $session->config( 'irstats2', 'cache_paths' );
-if ( defined $cache_paths )
-{
-	$handler->log( "Requesting stats pages to be cached" );
-	for my $cache_path ( @$cache_paths )
-	{
-		my $cmd = $session->config("perl_url") . $cache_path;
-		$handler->log( "Caching $cmd" );
-		`curl $cmd > /dev/null 2>&1`;
-	}
-}
 
 $session->terminate;
 exit;
