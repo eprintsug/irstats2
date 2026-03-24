@@ -4,7 +4,9 @@ $c->add_trigger( EPrints::Const::EP_TRIGGER_DYNAMIC_TEMPLATE, sub
 		my( %args ) = @_;
 
 		my( $repo, $pins ) = @args{qw/ repository pins/};
-	return EP_TRIGGER_OK unless defined $repo->get_request;
+
+        # disabling because sometimes we want to generate abstracts staticly
+        #return EP_TRIGGER_OK unless defined $repo->get_request;
 
 	# Only include Google Charts APIs if needed on current page.
 	my $stats_path = '^' . $repo->config( "rel_cgipath" ) . "/stats/";

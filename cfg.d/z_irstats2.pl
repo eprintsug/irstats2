@@ -657,4 +657,4 @@ for my $report_name (keys %{$c->{irstats2}->{report}})
 }
 
 # If you are embedding in abstract pages using a phrase set below to 1.
-$c->{irstats2}->{abstract_embed} = 0;
+$c->{irstats2}->{abstract_embed} = 1;
