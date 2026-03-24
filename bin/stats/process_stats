@@ -130,7 +130,7 @@ if( EPrints::Utils::is_set( $session->config( "irstats2", "cacheables" ) ) )
         my $filename = "$cache_dir/$cache_id";
 
         # get the data
-        my $data = $session->config( "irstats2", "cacheables" )->{$cache_id}->( $session );
+        my $data = $session->config( "irstats2", "cacheables" )->{$cache_id}->( $session, $handler );
 
         # write the data to the file!
         open(FH, '>', $filename) or die $!;
