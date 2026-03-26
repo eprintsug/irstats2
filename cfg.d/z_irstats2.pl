@@ -106,7 +106,7 @@ $c->{irstats2}->{datasets} = {
 	
 	access => { filters => [ 'Robots', 'Repeat' ] },
 
-	history => { incremental => 1 },
+#	history => { incremental => 1 },
 
 #	user => { incremental => 0 },
 };
@@ -600,15 +600,15 @@ $c->{plugins}{"Stats::Processor::Access::Browsers"}{params}{disable} = 0;
 $c->{plugins}{"Stats::Processor::Access::Country"}{params}{disable} = 0;
 $c->{plugins}{"Stats::Processor::Access::Downloads"}{params}{disable} = 0;
 $c->{plugins}{"Stats::Processor::Access::Referrer"}{params}{disable} = 0;
-$c->{plugins}{"Stats::Processor::Access::SearchTerms"}{params}{disable} = 0;
+$c->{plugins}{"Stats::Processor::Access::SearchTerms"}{params}{disable} = 1;
 
 $c->{plugins}{"Stats::Processor::EPrint"}{params}{disable} = 0;
 $c->{plugins}{"Stats::Processor::EPrint::Deposits"}{params}{disable} = 0;
 $c->{plugins}{"Stats::Processor::EPrint::DocumentAccess"}{params}{disable} = 0;
 $c->{plugins}{"Stats::Processor::EPrint::DocumentFormat"}{params}{disable} = 0;
 
-$c->{plugins}{"Stats::Processor::History"}{params}{disable} = 0;
-$c->{plugins}{"Stats::Processor::History::Actions"}{params}{disable} = 0;
+$c->{plugins}{"Stats::Processor::History"}{params}{disable} = 1;
+$c->{plugins}{"Stats::Processor::History::Actions"}{params}{disable} = 1;
 
 $c->{plugins}{"Stats::View::Compare"}{params}{disable} = 0;
 $c->{plugins}{"Stats::View::Counter"}{params}{disable} = 0;
