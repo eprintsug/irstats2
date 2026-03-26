@@ -240,9 +240,8 @@ var EPJS_Cacheable_Map = Class.create(EPJS_Stats, {
         const highColor = resolveCSSColor(this.options.get("high-color"));
 
         map_svg.call(zoom);
-        const colorScale = d3.scaleSqrt()
-            .domain([0, d3.max(map_data, d => d.count)])
-            .range([lowColor, highColor]); // Example color range
+
+        const colorScale = d3.scaleSqrt([0, d3.max(map_data).count], [lowColor, highColor]);
 
         const tooltip = d3.select('#world_map_tooltip');
 
