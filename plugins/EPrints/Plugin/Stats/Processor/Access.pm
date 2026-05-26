@@ -70,6 +70,7 @@ sub process_dataset
 	# the get_records() method handles incremental SQL processing (it doesn't retrieve ALL the records in one go)
 	my $records_list = $self->get_records( $handler, undef, $current_accessid );
 
+	# this isn't an EPrints::List map, it's a StatsRecordList map, which also steps through the incremental
 	$records_list->map( sub {
 
 		my( undef, undef, $record, $info ) = @_;
@@ -98,6 +99,11 @@ sub process_dataset
 				$plugin->commit_data( $handler );
 				$plugin->clear_cache();
 			}
+			# Log this value in the database in case processing is interrupted.
+			# This is not the main 'incremental' that is saved at the end of a processing run,
+			# but the value after each 100_000 record block (100_000 or 'limit' value).
+			$handler->set_internal_value( 'last_incremental_db_commit_accessid', $record->{accessid} );
+			$handler->set_internal_value( 'last_incremental_db_commit_time', EPrints::Time::get_iso_timestamp() );
 
 		}
 		return if( $discard );
@@ -135,6 +141,12 @@ sub process_dataset
 	$handler->log( "Access: $global_records_kept records kept out of $global_records_parsed ( ratio = ".sprintf( "%.2f", 100*($global_records_kept/$global_records_parsed))."% )" );
 	
 	$handler->unlock_dataset( 'access' );
+	
+	# remove temporary information
+	eval {
+		$handler->reset_internal_value( 'last_incremental_db_commit_accessid' );
+		$handler->reset_internal_value( 'last_incremental_db_commit_time' );
+	};
 	
 	return;
 }
