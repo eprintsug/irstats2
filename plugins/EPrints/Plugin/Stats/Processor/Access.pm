@@ -74,6 +74,9 @@ sub process_access_record
 				$plugin->commit_data( $handler );
 				$plugin->clear_cache();
 			}
+			$handler->set_internal_value( "periodic_db_commit_last_time_processed", $epoch );
+			$handler->set_internal_value( "periodic_db_commit_last_requester_id", $requester_id );
+			$handler->set_internal_value( "periodic_db_commit_last_commit_time", EPrints::Time::get_iso_timestamp() );
 
 		}
 		return if( $discard );
@@ -300,6 +303,11 @@ sub process_dataset
 	$handler->log( "Access: $run_stats{global_records_kept} records kept out of $run_stats{global_records_parsed} ( ratio = ".sprintf( "%.2f", 100*($run_stats{global_records_kept}/$run_stats{global_records_parsed}))."% )" );
 
 	$handler->unlock_dataset( 'access' );
+
+	# Remove temporary values stored to track last commit_data call
+	$handler->reset_internal_value( "periodic_db_commit_last_time_processed" );
+	$handler->reset_internal_value( "periodic_db_commit_last_requester_id" );
+	$handler->reset_internal_value( "periodic_db_commit_last_commit_time" );
 
 	return;
 }
