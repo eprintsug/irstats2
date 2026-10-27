@@ -703,20 +703,7 @@ sub get_cached_stats
     my $cache_file;
     my $filepath = $session->config( "variables_path" )."/stats/$cache";
 
-    # first check if this is defined in our cacheables config
-    my $found_cache = 0;
-    foreach my $cache_id ( keys %{$session->config( "irstats2", "cacheables" )} )
-    {
-        $found_cache = 1 if ( $cache eq $cache_id );
-    }
-
-    if( !$found_cache )
-    {
-        $session->log( "IRStats2 (Utils get_cached_stats), cache id is not defined in cacheables config: $cache" );
-        return undef;
-    }
-
-    # and then check if the file exists
+    # check if the file exists
     if( !-e $filepath )
     {
         $session->log( "IRStats2 (Utils get_cached_stats), file does not exist for requested cache: $cache (filepath: $filepath)" );
